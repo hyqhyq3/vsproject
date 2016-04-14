@@ -31,6 +31,7 @@ type ProjectFile struct {
 type Project struct {
 	Filters map[string]bool
 	Files   []*ProjectFile
+	PropertySheets []string
 }
 
 func main() {
@@ -39,6 +40,7 @@ func main() {
 	prjFile := flag.String("prjFile", "agame.vcxproj", "project file")
 	filterFile := flag.String("filterFile", "agame.vcxproj.filters", "project filter file")
 	mapRoot := flag.String("mapRoot", "", "map root")
+	propertySheets := flag.String("p", "", "property sheets, seperated by comma")
 	flag.Parse()
 
 	rootAbs, _ := filepath.Abs(*root)
@@ -73,6 +75,9 @@ func main() {
 			dir = dir[:pos]
 		}
 	}
+
+	prj.PropertySheets = strings.Split(*propertySheets, ",")
+	fmt.Println(prj.PropertySheets)
 
 	buf := &bytes.Buffer{}
 	prjTpl := template.Must(template.New("vsxproj").Parse(vsxproj))
@@ -144,9 +149,11 @@ var vsxproj = `<?xml version="1.0" encoding="utf-8"?>
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
+{{ range .PropertySheets }}
   <ImportGroup Label="PropertySheets">
-    <Import Project="agame.props" />
+    <Import Project="{{ . }}" />
   </ImportGroup>
+{{ end }}
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
