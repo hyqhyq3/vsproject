@@ -11,10 +11,17 @@ import (
 	"text/template"
 )
 
-func findFiles(root string, patterns []string) (files []string) {
+func findFiles(root string, patterns []string, excludes []string) (files []string) {
+	fmt.Println("root " + root)
 	files = make([]string, 0)
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		ok := false
+		for _, e := range excludes {
+			if strings.Contains(path, e) {
+				fmt.Println("except " + path)
+				return nil
+			}
+		}
 		for _, p := range patterns {
 			ok, _ = filepath.Match(p, filepath.Base(path))
 			if ok {
@@ -22,6 +29,7 @@ func findFiles(root string, patterns []string) (files []string) {
 			}
 		}
 		if ok {
+			fmt.Println("add file " + path)
 			files = append(files, path)
 		}
 		return nil
@@ -35,30 +43,41 @@ type ProjectFile struct {
 }
 
 type Project struct {
-	Filters map[string]bool
-	Files   []*ProjectFile
+	Name           string
+	Filters        map[string]bool
+	Files          []*ProjectFile
 	PropertySheets []string
+	UUID			string
 }
 
 func main() {
 
 	root := flag.String("root", ".", "root")
+	name := flag.String("name", "agame", "name of project")
+	exclude := flag.String("exclude", "", "exclude keyword")
 	prjFile := flag.String("prjFile", "agame.vcxproj", "project file")
 	filterFile := flag.String("filterFile", "agame.vcxproj.filters", "project filter file")
 	mapRoot := flag.String("mapRoot", "", "map root")
 	propertySheets := flag.String("p", "", "property sheets, seperated by comma")
 	filePatterns := flag.String("filePatterns", "*.h,*.cpp,*.c", "files, seperated by comma")
+	uuidStr := flag.String("uuid", "6757D22F-2E69-4E79-BDC3-A7F8B8FC7471", "project uuid")
 	flag.Parse()
 
 	rootAbs, _ := filepath.Abs(*root)
 
 	filePatternArr := strings.Split(*filePatterns, ",")
+	excludes := make([]string, 0)
+	if *exclude != "" {
+		excludes = strings.Split(*exclude, ",")
+	}
 
-	files := findFiles(*root, filePatternArr)
+	files := findFiles(*root, filePatternArr, excludes)
 
 	prj := &Project{
 		Filters: make(map[string]bool),
 		Files:   make([]*ProjectFile, 0),
+		Name:    *name,
+		UUID:	 *uuidStr,
 	}
 
 	for _, file := range files {
@@ -102,7 +121,7 @@ func main() {
 }
 
 var vsxproj = `<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -110,15 +129,15 @@ var vsxproj = `<?xml version="1.0" encoding="utf-8"?>
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{6757D22F-2E69-4E79-BDC3-A7F8B8FC7471}</ProjectGuid>
-    <RootNamespace>agame</RootNamespace>
+    <ProjectGuid>{{"{"}}{{.UUID}}{{"}"}}</ProjectGuid>
+    <RootNamespace>{{.Name}}</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v150</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
